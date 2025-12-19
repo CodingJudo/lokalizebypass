@@ -11,6 +11,7 @@ from src.translate import translate_missing
 from src.report import generate_summary_report, print_summary_report
 from src.providers.ollama import OllamaProvider
 from src.providers.api import APIProvider
+from src.providers.openai import OpenAIProvider
 from src.run_logging import RunLogger
 
 
@@ -107,14 +108,18 @@ def main() -> None:
     )
     translate_parser.add_argument(
         "--provider",
-        choices=["ollama", "api"],
+        choices=["ollama", "api", "openai"],
         default="ollama",
         help="Translation provider (default: ollama)"
     )
     translate_parser.add_argument(
         "--model",
         default="llama3.1:latest",
-        help="Ollama model name (default: llama3.1:latest)"
+        help="Ollama model name (default: llama3.1:latest). Ignored if --provider is openai."
+    )
+    translate_parser.add_argument(
+        "--openai-model",
+        help="OpenAI model name (default: from OPENAI_MODEL env or gpt-4o-mini). Only used if --provider is openai."
     )
     translate_parser.add_argument(
         "--batch-size",
@@ -168,14 +173,18 @@ def main() -> None:
     )
     run_parser.add_argument(
         "--provider",
-        choices=["ollama", "api"],
+        choices=["ollama", "api", "openai"],
         default="ollama",
         help="Translation provider (default: ollama)"
     )
     run_parser.add_argument(
         "--model",
         default="llama3.1:latest",
-        help="Ollama model name (default: llama3.1:latest)"
+        help="Ollama model name (default: llama3.1:latest). Ignored if --provider is openai."
+    )
+    run_parser.add_argument(
+        "--openai-model",
+        help="OpenAI model name (default: from OPENAI_MODEL env or gpt-4o-mini). Only used if --provider is openai."
     )
     run_parser.add_argument(
         "--batch-size",
@@ -274,6 +283,9 @@ def main() -> None:
                 provider = OllamaProvider(model=args.model)
             elif args.provider == "api":
                 provider = APIProvider()
+            elif args.provider == "openai":
+                model = args.openai_model  # None if not provided, will use env/default
+                provider = OpenAIProvider(model=model)
             else:
                 raise ValueError(f"Unknown provider: {args.provider}")
             
@@ -346,6 +358,9 @@ def main() -> None:
                     provider = OllamaProvider(model=args.model)
                 elif args.provider == "api":
                     provider = APIProvider()
+                elif args.provider == "openai":
+                    model = args.openai_model  # None if not provided, will use env/default
+                    provider = OpenAIProvider(model=model)
                 else:
                     raise ValueError(f"Unknown provider: {args.provider}")
                 

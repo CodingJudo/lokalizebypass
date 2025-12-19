@@ -26,10 +26,28 @@ Currently implemented:
 
 ## Usage
 
+### Quick Start
+
 ```bash
 # Build memory artifact from i18n files
 python -m src.cli build-memory
+
+# Translate missing keys (using Ollama - default)
+python -m src.cli run --target-lang en
+
+# Or use OpenAI (requires API key)
+export OPENAI_API_KEY=sk-your-key-here
+python -m src.cli run --target-lang en --provider openai
 ```
+
+### Translation Providers
+
+The pipeline supports multiple LLM providers:
+
+- **Ollama** (default): Free, local LLM. Requires [Ollama](https://ollama.ai/) installation.
+- **OpenAI**: Cloud-based. Requires API key. Set `OPENAI_API_KEY` environment variable.
+
+See `docs/runbook.md` for detailed usage and provider comparison.
 
 ## Development
 

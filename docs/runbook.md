@@ -65,10 +65,13 @@ Options:
 - `--memory-file PATH`: Path to memory.jsonl (default: `work/memory.jsonl`)
 - `--target-lang CODE`: Target language code (required)
 - `--source-lang CODE`: Source language code (default: `sv`)
-- `--provider PROVIDER`: Translation provider: `ollama` or `api` (default: `ollama`)
-- `--model MODEL`: Ollama model name (default: `llama3.1:latest`)
+- `--provider PROVIDER`: Translation provider: `ollama`, `api`, or `openai` (default: `ollama`)
+- `--model MODEL`: Ollama model name (default: `llama3.1:latest`). Ignored if `--provider` is `openai`.
+- `--openai-model MODEL`: OpenAI model name (default: from `OPENAI_MODEL` env or `gpt-4o-mini`). Only used if `--provider` is `openai`.
 - `--batch-size N`: Batch size for translations (default: `10`)
 - `--runs-dir PATH`: Directory for run logs (default: `work/runs`)
+- `--context TEXT`: Global context for translations
+- `--context-file PATH`: Path to file containing global context
 
 ## Phase 4: End-to-End Pipeline
 
@@ -85,8 +88,9 @@ Options:
 - `--memory-file PATH`: Path to memory.jsonl (default: `work/memory.jsonl`)
 - `--target-lang CODE`: Target language code (required)
 - `--source-lang CODE`: Source language code (default: `sv`)
-- `--provider PROVIDER`: Translation provider: `ollama` or `api` (default: `ollama`)
-- `--model MODEL`: Ollama model name (default: `llama3.1:latest`)
+- `--provider PROVIDER`: Translation provider: `ollama`, `api`, or `openai` (default: `ollama`)
+- `--model MODEL`: Ollama model name (default: `llama3.1:latest`). Ignored if `--provider` is `openai`.
+- `--openai-model MODEL`: OpenAI model name (default: from `OPENAI_MODEL` env or `gpt-4o-mini`). Only used if `--provider` is `openai`.
 - `--batch-size N`: Batch size for translations (default: `10`)
 - `--force`: Overwrite existing non-empty translations when writing back
 - `--skip-translate`: Skip translation step (useful for testing)
@@ -198,6 +202,78 @@ When you provide both global and per-key context, the prompt will include:
 - Per-key context inline with each item
 
 This gives the LLM maximum context for accurate translations.
+
+## Choosing a Translation Provider
+
+The pipeline supports multiple LLM providers:
+
+### Ollama (Default)
+
+**Pros:**
+- Free and runs locally
+- No API costs
+- Privacy: data stays on your machine
+- Works offline
+
+**Cons:**
+- Requires local installation and model downloads
+- Slower than cloud APIs
+- Limited to models available in Ollama
+
+**Setup:**
+1. Install [Ollama](https://ollama.ai/)
+2. Pull a model: `ollama pull llama3.1:latest`
+3. Use with: `--provider ollama --model llama3.1:latest`
+
+**Example:**
+```bash
+python -m src.cli run --target-lang fr --provider ollama --model llama3.1:latest
+```
+
+### OpenAI
+
+**Pros:**
+- Fast and reliable
+- High-quality translations
+- Access to latest models (GPT-4, GPT-4o-mini, etc.)
+- No local setup required
+
+**Cons:**
+- Requires API key and costs money
+- Data sent to external service
+- Requires internet connection
+
+**Setup:**
+1. Get an API key from [OpenAI](https://platform.openai.com/api-keys)
+2. Set environment variable: `export OPENAI_API_KEY=sk-...`
+3. (Optional) Set model: `export OPENAI_MODEL=gpt-4o-mini`
+4. (Optional) Set custom base URL: `export OPENAI_BASE_URL=https://api.openai.com/v1`
+
+**Example:**
+```bash
+export OPENAI_API_KEY=sk-your-key-here
+python -m src.cli run --target-lang fr --provider openai --openai-model gpt-4o-mini
+```
+
+**Cost Considerations:**
+- Pricing varies by model (GPT-4o-mini is cheaper than GPT-4)
+- Costs are per token (input + output)
+- Typical translation batch: ~100-500 tokens per batch
+- Monitor usage at [OpenAI Usage Dashboard](https://platform.openai.com/usage)
+
+**Troubleshooting:**
+- **401 Authentication Error**: Check your API key is correct
+- **403 Permission Error**: Verify your API key has access to the model
+- **429 Rate Limit**: You've exceeded rate limits. The provider will retry automatically with exponential backoff
+- **500/502/503 Server Error**: OpenAI service issue. The provider will retry automatically
+
+### API Provider (Skeleton)
+
+The `api` provider is a skeleton for custom API integrations. It requires:
+- `TRANSLATION_API_KEY` environment variable
+- `TRANSLATION_API_URL` environment variable
+
+This is intended for future custom integrations.
 
 ## Phase 5: Optional Hardening
 
