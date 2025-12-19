@@ -1,0 +1,19 @@
+---
+description: Working with LLM
+alwaysApply: false
+---
+# LLM contract: strict JSON in/out (file-only)
+
+## Output schema required
+{
+  "targetLanguage": "de",
+  "translations": [
+    { "key": "booking.confirm", "text": "Buchung bestätigen" }
+  ]
+}
+
+## Prompt rules
+- Return JSON only. No markdown. No commentary.
+- Preserve placeholders exactly as in source.
+- Translate from Swedish to target language.
+- Do not change keys.

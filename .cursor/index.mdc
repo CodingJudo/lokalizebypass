@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+
+# Project: i18n LLM Translator (file-only)
+
+## Goal
+Build a small, repeatable pipeline that:
+- Reads existing i18n JSON files (sv + 13 target languages)
+- Translates ONLY missing strings in target languages using an LLM provider
+- Validates output (format + placeholders) deterministically
+- Writes updated i18n JSON files without overwriting existing translations
+
+## Non-negotiable constraints
+- Never overwrite an existing non-empty translation unless an explicit "force" flag is passed.
+- Swedish (sv) is the single source of truth.
+- Preserve placeholders exactly (e.g. {name}, {{name}}, %s, ICU patterns).
+- LLM output must be machine-parseable JSON (no prose).
+- The pipeline must be resumable and idempotent using files only.
+
+## Architecture direction (no DB)
+- Python for the pipeline runner.
+- Canonical intermediate artifact is a JSONL or JSON file in work/:
+  - work/memory.jsonl (preferred) OR work/memory.json
+- Keep per-language JSON files as the delivery format in i18n/.
+
+## Working style
+- Small functions, explicit types, clear error paths.
+- Deterministic behavior (temperature near 0, stable batching).
+- Avoid adding dependencies unless they pay for themselves.

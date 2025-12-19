@@ -1,0 +1,7 @@
+{
+  "welcome": "Bienvenue, {{username}} !",
+  "items.count": "Vous avez {{count}} articles",
+  "error.404": "Erreur \\1: Page non trouvée",
+  "button.save": "Enregistrer",
+  "button.cancel": "Annuler"
+}

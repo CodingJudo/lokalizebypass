@@ -1,0 +1,11 @@
+{
+  "welcome": "Welcome",
+  "booking.confirm": "Confirm booking",
+  "booking.cancel": null,
+  "user.greeting": "Hello {name}!",
+  "user.message": "",
+  "error.not_found": "Page not found",
+  "format.percent": null,
+  "format.double_brace": null
+}
+

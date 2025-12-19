@@ -1,0 +1,23 @@
+---
+description: reference to memory schema or semantics
+alwaysApply: false
+---
+# Canonical memory schema (file-only)
+
+## memory.jsonl format (one JSON object per line)
+{
+  "key": "booking.confirm",
+  "ns": "booking",
+  "source_lang": "sv",
+  "source": "Bekräfta bokning",
+  "targets": { "en": "Confirm booking", "de": null, ... },
+  "status": { "en": "ok", "de": "missing", ... },
+  "placeholder_signature": "{ } / %s / ICU ...",
+  "meta": { "description": "CTA button", "screen": "Checkout" },
+  "fingerprint": "sha256(key + source + placeholder_signature + context_version)"
+}
+
+## Semantics
+- Missing = targets[lang] is null or empty string (configurable).
+- Only fill missing unless --force.
+- If fingerprint changes (sv edited), mark related target statuses as "needs_review" (do not overwrite).

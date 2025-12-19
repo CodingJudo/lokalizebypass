@@ -1,0 +1,10 @@
+{
+  "welcome": "Willkommen",
+  "booking.confirm": null,
+  "booking.cancel": null,
+  "user.greeting": null,
+  "user.message": null,
+  "error.not_found": null,
+  "format.percent": null,
+  "format.double_brace": null
+}

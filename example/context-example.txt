@@ -1,0 +1,5 @@
+This is a mobile booking application for hotels. 
+Use a friendly, professional tone suitable for customer-facing interactions.
+Keep translations concise and clear.
+Domain: Travel and hospitality
+

@@ -1,0 +1,7 @@
+{
+  "welcome": "Welcome, {{username}}!",
+  "items.count": "You have {{count}} items",
+  "error.404": "Error \\1: Page not found",
+  "button.save": "Save",
+  "button.cancel": "Cancel"
+}

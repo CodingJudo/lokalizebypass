@@ -1,0 +1,14 @@
+---
+description: development guidelines
+alwaysApply: false
+---
+# Dev guidelines (Python)
+
+- Python 3.11+.
+- Type hints for public functions.
+- Keep memory.jsonl stable and deterministic (sorted keys, stable ns extraction).
+- Prefer JSONL streaming reads/writes; avoid loading everything unless necessary.
+- Add unit tests for:
+  - placeholder extraction/signature
+  - merge-only-missing behavior
+  - JSON schema validation

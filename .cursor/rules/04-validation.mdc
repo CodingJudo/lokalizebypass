@@ -1,0 +1,27 @@
+---
+description: Validation
+alwaysApply: false
+---
+# Validation requirements (file-only)
+
+## Hard-fail (status=invalid)
+- Output not parseable JSON
+- Missing required fields (targetLanguage, translations, key, text)
+- Placeholder mismatch vs placeholder_signature
+- Empty output text for required translation
+
+## Repair strategy
+- Re-prompt using a "repair JSON" prompt with the invalid response included.
+- Accept only if it passes hard-fail checks.
+
+## Merge rules
+- When writing i18n/<lang>.json: only set values for keys where existing value is missing unless --force.
+
+## Protected tokens (Lokalise)
+Protected tokens MUST NOT be translated and MUST be preserved with the same counts.
+Initial protected token patterns:
+- Double-curly variables: {{...}}
+- Backslash-number references: \1, \2, \10, etc.
+Validation rule (hard fail):
+- For each source string, compute a protected-token multiset (token -> count).
+- For each translated string, compute the same and require exact match.

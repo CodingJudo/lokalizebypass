@@ -1,0 +1,12 @@
+{
+  "welcome": "Välkommen",
+  "booking.confirm": "Bekräfta bokning",
+  "booking.cancel": "Avbryt bokning",
+  "user.greeting": "Hej {name}!",
+  "user.message": "Du har {count} meddelanden",
+  "error.not_found": "Sidan hittades inte",
+  "format.percent": "Procent: %s",
+  "format.double_brace": "Värde: {{value}}",
+  "lokalise.protected": "Hej {{name}} \\1"
+}
+

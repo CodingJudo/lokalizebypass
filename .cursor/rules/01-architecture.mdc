@@ -1,0 +1,50 @@
+---
+description: working with structure of the project or the architecture
+alwaysApply: false
+---
+# Architecture: modules, CLI, and flow (file-only)
+
+## Folder layout (target)
+i18n/                      # existing translation files (input + output)
+  sv.json
+  en.json
+  ...
+src/
+  cli.py                   # entrypoint (argparse or Typer)
+  io_json.py               # read/write i18n JSON files
+  memory.py                # build/update canonical memory artifact
+  select.py                # compute missing keys, batching
+  providers/
+    base.py                # translate_batch interface
+    ollama.py              # local provider
+    api.py                 # external provider (placeholder)
+  prompts/
+    translate.py           # prompt builder + JSON schema
+    repair.py              # retry/repair prompt
+  validate/
+    placeholders.py        # detect + validate placeholders
+    schema.py              # validate JSON shape
+  merge.py                 # merge results back into per-language files
+  report.py                # stats + failures report
+docs/
+  phases_checklist.md
+  runbook.md
+work/
+  memory.jsonl             # canonical per-key dataset
+  runs/
+    <run_id>/
+      requests.jsonl
+      responses.jsonl
+      failures.jsonl
+      summary.json
+
+## CLI commands (target)
+- build-memory: i18n/*.json -> work/memory.jsonl
+- translate-missing: for each language, batch missing keys -> update work/memory.jsonl
+- validate: placeholder + schema checks, produce report, mark failures
+- write-back: work/memory.jsonl -> i18n/*.json (merge-only-missing)
+- run: end-to-end orchestration
+
+## Operational requirements
+- Resume support: safe to rerun translate-missing repeatedly.
+- Each run writes logs/failures to work/runs/<run_id>/.
