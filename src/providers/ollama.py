@@ -146,6 +146,8 @@ class OllamaProvider(TranslationProvider):
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='replace',  # Replace invalid characters instead of crashing
                 timeout=300,  # 5 minute timeout
                 check=True
             )

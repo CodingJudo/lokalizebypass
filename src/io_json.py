@@ -5,6 +5,67 @@ from pathlib import Path
 from typing import Dict, Any
 
 
+def flatten_json(data: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
+    """
+    Flatten a nested JSON dictionary into dot-notation keys.
+    
+    Args:
+        data: Nested dictionary to flatten
+        parent_key: Parent key prefix (used in recursion)
+        sep: Separator for keys (default: ".")
+        
+    Returns:
+        Flattened dictionary with dot-notation keys
+        
+    Example:
+        {"a": {"b": "value"}} -> {"a.b": "value"}
+    """
+    items = []
+    for key, value in data.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        
+        if isinstance(value, dict):
+            # Recursively flatten nested dictionaries
+            items.extend(flatten_json(value, new_key, sep=sep).items())
+        else:
+            # Leaf value (string, number, null, array, etc.)
+            items.append((new_key, value))
+    
+    return dict(items)
+
+
+def unflatten_json(data: Dict[str, Any], sep: str = ".") -> Dict[str, Any]:
+    """
+    Unflatten a dictionary with dot-notation keys into nested structure.
+    
+    Args:
+        data: Flattened dictionary with dot-notation keys
+        sep: Separator used in keys (default: ".")
+        
+    Returns:
+        Nested dictionary structure
+        
+    Example:
+        {"a.b": "value"} -> {"a": {"b": "value"}}
+    """
+    result = {}
+    
+    for key, value in data.items():
+        parts = key.split(sep)
+        current = result
+        
+        # Navigate/create nested structure
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        
+        # Set the final value
+        current[parts[-1]] = value
+    
+    return result
+
+
 def read_i18n_file(file_path: Path) -> Dict[str, Any]:
     """
     Read a single i18n JSON file.
@@ -28,14 +89,14 @@ def read_i18n_file(file_path: Path) -> Dict[str, Any]:
 
 def read_all_i18n_files(i18n_dir: Path) -> Dict[str, Dict[str, Any]]:
     """
-    Read all JSON files from i18n directory.
+    Read all JSON files from i18n directory and flatten them.
     
     Args:
         i18n_dir: Path to directory containing i18n JSON files
         
     Returns:
-        Dictionary mapping language codes to their translation dictionaries
-        Example: {"sv": {"key1": "value1"}, "en": {"key1": "value1"}}
+        Dictionary mapping language codes to their flattened translation dictionaries
+        Example: {"sv": {"key1": "value1", "app.title": "value2"}, ...}
     """
     if not i18n_dir.exists():
         return {}
@@ -45,7 +106,9 @@ def read_all_i18n_files(i18n_dir: Path) -> Dict[str, Dict[str, Any]]:
     for json_file in i18n_dir.glob("*.json"):
         lang_code = json_file.stem
         try:
-            result[lang_code] = read_i18n_file(json_file)
+            nested_data = read_i18n_file(json_file)
+            # Flatten the nested structure
+            result[lang_code] = flatten_json(nested_data)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             # Skip invalid files, but could log warning in future
             continue
