@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from src.io_json import read_i18n_file, read_all_i18n_files
+from src.io_json import read_i18n_file, flatten_json, unflatten_json
 from src.memory import is_missing
 
 
@@ -14,12 +14,17 @@ def write_i18n_file(file_path: Path, data: Dict[str, Any]) -> None:
     
     Args:
         file_path: Path to output JSON file
-        data: Dictionary of translation keys and values
+        data: Dictionary of translation keys and values (nested structure)
     """
     file_path.parent.mkdir(parents=True, exist_ok=True)
     
+    # Convert to JSON with escaped forward slashes to match source format
+    json_str = json.dumps(data, ensure_ascii=False, indent=2)
+    # Re-escape forward slashes to match the original format
+    json_str = json_str.replace('/', '\\/')
+    
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write(json_str)
         f.write("\n")
 
 
@@ -55,10 +60,12 @@ def merge_translations(
             record = json.loads(line)
             memory_records[record["key"]] = record
     
-    # Read existing i18n file for target language
+    # Read existing i18n file for target language (nested structure)
     target_file = i18n_dir / f"{target_lang}.json"
     if target_file.exists():
-        existing_data = read_i18n_file(target_file)
+        nested_data = read_i18n_file(target_file)
+        # Flatten for easier merging
+        existing_data = flatten_json(nested_data)
     else:
         existing_data = {}
     
@@ -91,8 +98,11 @@ def merge_translations(
         existing_data[key] = new_value
         updated += 1
     
+    # Unflatten back to nested structure before writing
+    nested_data = unflatten_json(existing_data)
+    
     # Write updated file
-    write_i18n_file(target_file, existing_data)
+    write_i18n_file(target_file, nested_data)
     
     return {
         "updated": updated,

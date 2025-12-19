@@ -19,7 +19,8 @@ def translate_missing(
     provider: TranslationProvider,
     logger: Optional[RunLogger] = None,
     batch_size: int = 10,
-    max_repairs: int = 2
+    max_repairs: int = 2,
+    global_context: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Translate missing keys for a target language.
