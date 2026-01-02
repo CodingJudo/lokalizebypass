@@ -33,9 +33,9 @@
 - [x] Document usage in docs/runbook.md
 
 ## Phase 5: Optional hardening
-- [ ] Glossary + do-not-translate support
-- [ ] Stale detection when sv changes (needs_review flag)
-- [ ] CI step: validate placeholders + schema without calling LLM
+- [~] Glossary + do-not-translate support (skipped - context files sufficient)
+- [~] Stale detection when sv changes (needs_review flag) (skipped)
+- [~] CI step: validate placeholders + schema without calling LLM (skipped)
 
 ## Phase 6: OpenAI Provider Support
 - [x] Implement `OpenAIProvider` in `src/providers/openai.py`

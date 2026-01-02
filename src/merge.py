@@ -30,9 +30,10 @@ def write_i18n_file(file_path: Path, data: Dict[str, Any]) -> None:
 
 def merge_translations(
     memory_file: Path,
-    i18n_dir: Path,
     target_lang: str,
-    force: bool = False
+    force: bool = False,
+    i18n_dir: Optional[Path] = None,
+    output_file: Optional[Path] = None
 ) -> Dict[str, Any]:
     """
     Merge translations from memory.jsonl into target language i18n file.
@@ -41,9 +42,10 @@ def merge_translations(
     
     Args:
         memory_file: Path to memory.jsonl file
-        i18n_dir: Directory containing i18n JSON files
         target_lang: Target language code to merge into
         force: If True, overwrite existing non-empty translations
+        i18n_dir: Directory containing i18n JSON files (folder mode)
+        output_file: Explicit output file path (file mode). If provided, overrides i18n_dir.
         
     Returns:
         Dictionary with merge statistics:
@@ -52,7 +54,18 @@ def merge_translations(
             "skipped": int,  # Number of keys skipped (already had value)
             "errors": list[str]  # List of error messages
         }
+    
+    Raises:
+        ValueError: If neither i18n_dir nor output_file is provided
     """
+    # Determine output file path
+    if output_file is not None:
+        target_file = output_file
+    elif i18n_dir is not None:
+        target_file = i18n_dir / f"{target_lang}.json"
+    else:
+        raise ValueError("Either i18n_dir or output_file must be provided")
+    
     # Read memory.jsonl
     memory_records: Dict[str, Dict[str, Any]] = {}
     with open(memory_file, "r", encoding="utf-8") as f:
@@ -61,7 +74,6 @@ def merge_translations(
             memory_records[record["key"]] = record
     
     # Read existing i18n file for target language (nested structure)
-    target_file = i18n_dir / f"{target_lang}.json"
     if target_file.exists():
         nested_data = read_i18n_file(target_file)
         # Flatten for easier merging

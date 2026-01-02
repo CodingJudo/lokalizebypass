@@ -1,4 +1,4 @@
-"""OpenAI provider for LLM translation."""
+"""OpenRouter provider for LLM translation."""
 
 import json
 import os
@@ -13,8 +13,8 @@ from src.prompts.repair import build_repair_prompt
 from src.validate.schema import validate_llm_output
 
 
-class OpenAIProvider(TranslationProvider):
-    """OpenAI provider for LLM translation using Chat Completions API."""
+class OpenRouterProvider(TranslationProvider):
+    """OpenRouter provider for LLM translation using OpenAI-compatible Chat Completions API."""
     
     def __init__(
         self,
@@ -23,48 +23,53 @@ class OpenAIProvider(TranslationProvider):
         model: Optional[str] = None,
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        timeout: float = 60.0
+        timeout: float = 60.0,
+        http_referer: Optional[str] = None,
+        site_name: Optional[str] = None
     ):
         """
-        Initialize OpenAI provider.
+        Initialize OpenRouter provider.
         
         Args:
-            api_key: OpenAI API key (default: from OPENAI_API_KEY env var)
-            base_url: API base URL (default: from OPENAI_BASE_URL env var or https://api.openai.com/v1)
-            model: Model name (default: from OPENAI_MODEL env var or gpt-4o-mini)
+            api_key: OpenRouter API key (default: from OPENROUTER_API_KEY env var)
+            base_url: API base URL (default: from OPENROUTER_BASE_URL env var or https://openrouter.ai/api/v1)
+            model: Model name (default: from OPENROUTER_MODEL env var or openai/gpt-4o-mini)
             max_retries: Maximum number of retries on failure (default: 3)
             retry_delay: Initial delay between retries in seconds (default: 1.0)
             timeout: Request timeout in seconds (default: 60.0)
+            http_referer: Optional HTTP-Referer header (default: from OPENROUTER_HTTP_REFERER env var)
+            site_name: Optional X-Title header (default: from OPENROUTER_SITE_NAME env var)
         """
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
             raise ValueError(
-                "OpenAI API key required. Set OPENAI_API_KEY environment variable "
+                "OpenRouter API key required. Set OPENROUTER_API_KEY environment variable "
                 "or pass api_key parameter."
             )
         
-        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL") or 
-                        "https://api.openai.com/v1")
-        self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
+        self.base_url = (base_url or os.getenv("OPENROUTER_BASE_URL") or 
+                        "https://openrouter.ai/api/v1")
+        self.model = model or os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
+        self.http_referer = http_referer or os.getenv("OPENROUTER_HTTP_REFERER")
+        self.site_name = site_name or os.getenv("OPENROUTER_SITE_NAME")
     
-    def _call_openai(
+    def _call_openrouter(
         self,
         prompt: str,
         temperature: float = 0.1
     ) -> str:
         """
-        Call OpenAI Chat Completions API with a prompt.
+        Call OpenRouter Chat Completions API with a prompt.
         
         Args:
             prompt: Prompt text
             temperature: Temperature for generation (default: 0.1 for deterministic)
-            logger: Optional RunLogger instance for logging
         
         Returns:
-            Response text from OpenAI
+            Response text from OpenRouter
         
         Raises:
             Exception: If API call fails after retries
@@ -74,6 +79,12 @@ class OpenAIProvider(TranslationProvider):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+        
+        # Add optional headers if provided
+        if self.http_referer:
+            headers["HTTP-Referer"] = self.http_referer
+        if self.site_name:
+            headers["X-Title"] = self.site_name
         
         # Convert prompt to chat messages format
         messages = [
@@ -111,21 +122,21 @@ class OpenAIProvider(TranslationProvider):
                         continue
                     else:
                         raise Exception(
-                            f"OpenAI API rate limit exceeded after {self.max_retries} retries. "
+                            f"OpenRouter API rate limit exceeded after {self.max_retries} retries. "
                             f"Response: {response.text}"
                         )
                 
                 # Handle authentication errors (401)
                 if response.status_code == 401:
                     raise Exception(
-                        "OpenAI API authentication failed. Check your API key. "
+                        "OpenRouter API authentication failed. Check your API key. "
                         f"Response: {response.text}"
                     )
                 
                 # Handle permission errors (403)
                 if response.status_code == 403:
                     raise Exception(
-                        "OpenAI API permission denied. Check your API key permissions. "
+                        "OpenRouter API permission denied. Check your API key permissions. "
                         f"Response: {response.text}"
                     )
                 
@@ -137,14 +148,14 @@ class OpenAIProvider(TranslationProvider):
                         continue
                     else:
                         raise Exception(
-                            f"OpenAI API server error ({response.status_code}) after {self.max_retries} retries. "
+                            f"OpenRouter API server error ({response.status_code}) after {self.max_retries} retries. "
                             f"Response: {response.text}"
                         )
                 
                 # Handle other HTTP errors
                 if not response.ok:
                     raise Exception(
-                        f"OpenAI API error ({response.status_code}): {response.text}"
+                        f"OpenRouter API error ({response.status_code}): {response.text}"
                     )
                 
                 # Parse response
@@ -152,7 +163,7 @@ class OpenAIProvider(TranslationProvider):
                 
                 # Extract content from response
                 if "choices" not in response_data or len(response_data["choices"]) == 0:
-                    raise Exception("OpenAI API response missing choices")
+                    raise Exception("OpenRouter API response missing choices")
                 
                 content = response_data["choices"][0]["message"]["content"]
                 return content.strip()
@@ -164,7 +175,7 @@ class OpenAIProvider(TranslationProvider):
                     time.sleep(wait_time)
                     continue
                 else:
-                    raise Exception(f"OpenAI API request timed out after {self.max_retries} retries: {e}")
+                    raise Exception(f"OpenRouter API request timed out after {self.max_retries} retries: {e}")
             
             except requests.exceptions.RequestException as e:
                 last_exception = e
@@ -173,10 +184,10 @@ class OpenAIProvider(TranslationProvider):
                     time.sleep(wait_time)
                     continue
                 else:
-                    raise Exception(f"OpenAI API request failed after {self.max_retries} retries: {e}")
+                    raise Exception(f"OpenRouter API request failed after {self.max_retries} retries: {e}")
         
         # Should not reach here, but just in case
-        raise Exception(f"OpenAI API request failed: {last_exception}")
+        raise Exception(f"OpenRouter API request failed: {last_exception}")
     
     def translate_batch(
         self,
@@ -187,7 +198,7 @@ class OpenAIProvider(TranslationProvider):
         per_key_context: Optional[Dict[str, Dict[str, str]]] = None
     ) -> Dict[str, Any]:
         """
-        Translate a batch of items using OpenAI.
+        Translate a batch of items using OpenRouter.
         
         Includes repair flow for invalid JSON responses (max 2 attempts).
         
@@ -220,8 +231,8 @@ class OpenAIProvider(TranslationProvider):
         max_repairs = 2
         for attempt in range(max_repairs + 1):
             try:
-                # Call OpenAI
-                response_text = self._call_openai(prompt)
+                # Call OpenRouter
+                response_text = self._call_openrouter(prompt)
                 
                 # Extract JSON from response (might be wrapped in markdown or have commentary)
                 response_text = extract_json_from_response(response_text)

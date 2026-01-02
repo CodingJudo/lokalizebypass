@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 def flatten_json(data: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
@@ -112,6 +112,47 @@ def read_all_i18n_files(i18n_dir: Path) -> Dict[str, Dict[str, Any]]:
         except (FileNotFoundError, json.JSONDecodeError) as e:
             # Skip invalid files, but could log warning in future
             continue
+    
+    return result
+
+
+def read_i18n_files_explicit(
+    file_paths: list[Path],
+    lang_map: Optional[Dict[Path, str]] = None
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Read explicit i18n JSON files and flatten them.
+    
+    Args:
+        file_paths: List of paths to JSON files
+        lang_map: Optional mapping from file path to language code.
+                  If not provided, language code is inferred from filename stem.
+    
+    Returns:
+        Dictionary mapping language codes to their flattened translation dictionaries
+        Example: {"en": {"key1": "value1", "app.title": "value2"}, ...}
+    
+    Raises:
+        FileNotFoundError: If any file doesn't exist
+        json.JSONDecodeError: If any file is not valid JSON
+    """
+    result: Dict[str, Dict[str, Any]] = {}
+    
+    for file_path in file_paths:
+        # Determine language code
+        if lang_map and file_path in lang_map:
+            lang_code = lang_map[file_path]
+        else:
+            # Infer from filename stem (e.g., "en.json" -> "en")
+            lang_code = file_path.stem
+        
+        try:
+            nested_data = read_i18n_file(file_path)
+            # Flatten the nested structure
+            result[lang_code] = flatten_json(nested_data)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            # Re-raise with context
+            raise FileNotFoundError(f"Failed to read i18n file {file_path}: {e}") from e
     
     return result
 

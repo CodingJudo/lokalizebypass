@@ -47,18 +47,19 @@ def test_merge_translations_updates_missing(tmp_path: Path):
     en_file.write_text('{"test.key1": "Existing value"}', encoding="utf-8")
     
     # Merge translations for en
-    stats = merge_translations(memory_file, i18n_dir, "en", force=False)
+    stats = merge_translations(memory_file, target_lang="en", i18n_dir=i18n_dir, force=False)
     
     # Verify stats
     assert stats["updated"] == 1  # test.key2 was updated
     assert stats["skipped"] == 1  # test.key1 was skipped (already had value)
     
-    # Verify file contents
+    # Verify file contents (nested structure)
     with open(en_file, "r", encoding="utf-8") as f:
         en_data = json.load(f)
     
-    assert en_data["test.key1"] == "Existing value"  # Not overwritten
-    assert en_data["test.key2"] == "Test value 2"  # Updated from memory
+    # Data is unflattened, so "test.key1" becomes {"test": {"key1": "..."}}
+    assert en_data["test"]["key1"] == "Existing value"  # Not overwritten
+    assert en_data["test"]["key2"] == "Test value 2"  # Updated from memory
 
 
 def test_merge_translations_does_not_overwrite_existing(tmp_path: Path):
@@ -90,17 +91,17 @@ def test_merge_translations_does_not_overwrite_existing(tmp_path: Path):
     en_file.write_text('{"test.key": "Existing value"}', encoding="utf-8")
     
     # Merge translations for en (without force)
-    stats = merge_translations(memory_file, i18n_dir, "en", force=False)
+    stats = merge_translations(memory_file, target_lang="en", i18n_dir=i18n_dir, force=False)
     
     # Verify skipped
     assert stats["skipped"] == 1
     assert stats["updated"] == 0
     
-    # Verify file contents unchanged
+    # Verify file contents unchanged (nested structure)
     with open(en_file, "r", encoding="utf-8") as f:
         en_data = json.load(f)
     
-    assert en_data["test.key"] == "Existing value"  # Not overwritten
+    assert en_data["test"]["key"] == "Existing value"  # Not overwritten
 
 
 def test_merge_translations_force_overwrite(tmp_path: Path):
@@ -132,17 +133,17 @@ def test_merge_translations_force_overwrite(tmp_path: Path):
     en_file.write_text('{"test.key": "Existing value"}', encoding="utf-8")
     
     # Merge translations for en (with force)
-    stats = merge_translations(memory_file, i18n_dir, "en", force=True)
+    stats = merge_translations(memory_file, target_lang="en", i18n_dir=i18n_dir, force=True)
     
     # Verify updated
     assert stats["updated"] == 1
     assert stats["skipped"] == 0
     
-    # Verify file contents overwritten
+    # Verify file contents overwritten (nested structure)
     with open(en_file, "r", encoding="utf-8") as f:
         en_data = json.load(f)
     
-    assert en_data["test.key"] == "New value"  # Overwritten
+    assert en_data["test"]["key"] == "New value"  # Overwritten
 
 
 def test_merge_translations_creates_new_file(tmp_path: Path):
@@ -172,7 +173,7 @@ def test_merge_translations_creates_new_file(tmp_path: Path):
     i18n_dir.mkdir()
     
     # Merge translations for de
-    stats = merge_translations(memory_file, i18n_dir, "de", force=False)
+    stats = merge_translations(memory_file, target_lang="de", i18n_dir=i18n_dir, force=False)
     
     # Verify updated
     assert stats["updated"] == 1
@@ -184,7 +185,8 @@ def test_merge_translations_creates_new_file(tmp_path: Path):
     with open(de_file, "r", encoding="utf-8") as f:
         de_data = json.load(f)
     
-    assert de_data["test.key"] == "Neuer Wert"
+    # Data is unflattened, so "test.key" becomes {"test": {"key": "..."}}
+    assert de_data["test"]["key"] == "Neuer Wert"
 
 
 def test_merge_translations_skips_missing_values(tmp_path: Path):
@@ -216,7 +218,7 @@ def test_merge_translations_skips_missing_values(tmp_path: Path):
     en_file.write_text('{}', encoding="utf-8")
     
     # Merge translations for en
-    stats = merge_translations(memory_file, i18n_dir, "en", force=False)
+    stats = merge_translations(memory_file, target_lang="en", i18n_dir=i18n_dir, force=False)
     
     # Verify nothing updated
     assert stats["updated"] == 0

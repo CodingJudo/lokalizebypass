@@ -52,7 +52,7 @@ def test_build_memory_missing_detection(tmp_path: Path):
     
     # Build memory
     output_file = tmp_path / "memory.jsonl"
-    build_memory(i18n_dir, output_file, source_lang="sv")
+    build_memory(output_file=output_file, source_lang="sv", i18n_dir=i18n_dir)
     
     # Read and verify
     import json

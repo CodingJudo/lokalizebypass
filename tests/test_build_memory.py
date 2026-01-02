@@ -24,7 +24,7 @@ def test_build_memory_includes_protected_token_signature(tmp_path: Path):
     
     # Build memory
     output_file = tmp_path / "memory.jsonl"
-    build_memory(i18n_dir, output_file, source_lang="sv")
+    build_memory(output_file=output_file, source_lang="sv", i18n_dir=i18n_dir)
     
     # Read and verify
     records = []
@@ -62,7 +62,7 @@ def test_build_memory_deterministic_ordering(tmp_path: Path):
     )
     
     output_file = tmp_path / "memory.jsonl"
-    build_memory(i18n_dir, output_file, source_lang="sv")
+    build_memory(output_file=output_file, source_lang="sv", i18n_dir=i18n_dir)
     
     # Read records
     records = []
@@ -88,7 +88,7 @@ def test_build_memory_all_required_fields(tmp_path: Path):
     en_file.write_text('{"test.key": "Test value"}', encoding="utf-8")
     
     output_file = tmp_path / "memory.jsonl"
-    build_memory(i18n_dir, output_file, source_lang="sv")
+    build_memory(output_file=output_file, source_lang="sv", i18n_dir=i18n_dir)
     
     # Read record
     with open(output_file, "r", encoding="utf-8") as f:

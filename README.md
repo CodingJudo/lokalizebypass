@@ -4,7 +4,7 @@ A small, repeatable pipeline that translates missing i18n strings using LLM prov
 
 ## Goal
 
-- Reads existing i18n JSON files (sv + 13 target languages)
+- Reads existing i18n JSON files (source language + target languages)
 - Translates ONLY missing strings in target languages using an LLM provider
 - Validates output (format + placeholders) deterministically
 - Writes updated i18n JSON files without overwriting existing translations
@@ -12,7 +12,7 @@ A small, repeatable pipeline that translates missing i18n strings using LLM prov
 ## Non-negotiable constraints
 
 - Never overwrite an existing non-empty translation unless an explicit "force" flag is passed.
-- Swedish (sv) is the single source of truth.
+- The source language (configurable, default: sv) is the single source of truth.
 - Preserve placeholders exactly (e.g. {name}, {{name}}, %s, ICU patterns).
 - LLM output must be machine-parseable JSON (no prose).
 - The pipeline must be resumable and idempotent using files only.
@@ -38,6 +38,14 @@ python -m src.cli run --target-lang en
 # Or use OpenAI (requires API key)
 export OPENAI_API_KEY=sk-your-key-here
 python -m src.cli run --target-lang en --provider openai
+
+# Or use OpenRouter (requires API key)
+export OPENROUTER_API_KEY=sk-or-your-key-here
+python -m src.cli run --target-lang en --provider openrouter
+
+# Or use Claude (requires API key)
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+python -m src.cli run --target-lang en --provider claude
 ```
 
 ### Translation Providers
@@ -46,6 +54,8 @@ The pipeline supports multiple LLM providers:
 
 - **Ollama** (default): Free, local LLM. Requires [Ollama](https://ollama.ai/) installation.
 - **OpenAI**: Cloud-based. Requires API key. Set `OPENAI_API_KEY` environment variable.
+- **OpenRouter**: Unified API for multiple LLM models. Requires API key. Set `OPENROUTER_API_KEY` environment variable.
+- **Claude (Anthropic)**: Cloud-based with optional batch processing (50% cost savings). Requires API key. Set `ANTHROPIC_API_KEY` environment variable.
 
 See `docs/runbook.md` for detailed usage and provider comparison.
 

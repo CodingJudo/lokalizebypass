@@ -10,8 +10,9 @@ from src.merge import merge_translations
 from src.translate import translate_missing
 from src.report import generate_summary_report, print_summary_report
 from src.providers.ollama import OllamaProvider
-from src.providers.api import APIProvider
 from src.providers.openai import OpenAIProvider
+from src.providers.openrouter import OpenRouterProvider
+from src.providers.claude import ClaudeProvider
 from src.run_logging import RunLogger
 
 
@@ -31,8 +32,19 @@ def main() -> None:
     build_parser.add_argument(
         "--i18n-dir",
         type=Path,
-        default=Path("i18n"),
-        help="Directory containing i18n JSON files (default: i18n)"
+        default=None,
+        help="Directory containing i18n JSON files (folder mode). Mutually exclusive with --source-file/--target-file."
+    )
+    build_parser.add_argument(
+        "--source-file",
+        type=Path,
+        help="Source language JSON file (file mode). Mutually exclusive with --i18n-dir."
+    )
+    build_parser.add_argument(
+        "--target-file",
+        type=Path,
+        action="append",
+        help="Target language JSON file (file mode, can specify multiple). Mutually exclusive with --i18n-dir."
     )
     build_parser.add_argument(
         "--output",
@@ -43,7 +55,7 @@ def main() -> None:
     build_parser.add_argument(
         "--source-lang",
         default="sv",
-        help="Source language code (default: sv)"
+        help="Source language code (default: sv, or inferred from --source-file filename)"
     )
     
     # validate command
@@ -71,8 +83,13 @@ def main() -> None:
     write_back_parser.add_argument(
         "--i18n-dir",
         type=Path,
-        default=Path("i18n"),
-        help="Directory containing i18n JSON files (default: i18n)"
+        default=None,
+        help="Directory containing i18n JSON files (folder mode). Mutually exclusive with --output-file."
+    )
+    write_back_parser.add_argument(
+        "--output-file",
+        type=Path,
+        help="Explicit output file path (file mode). Mutually exclusive with --i18n-dir."
     )
     write_back_parser.add_argument(
         "--target-lang",
@@ -108,7 +125,7 @@ def main() -> None:
     )
     translate_parser.add_argument(
         "--provider",
-        choices=["ollama", "api", "openai"],
+        choices=["ollama", "openai", "openrouter", "claude"],
         default="ollama",
         help="Translation provider (default: ollama)"
     )
@@ -120,6 +137,24 @@ def main() -> None:
     translate_parser.add_argument(
         "--openai-model",
         help="OpenAI model name (default: from OPENAI_MODEL env or gpt-4o-mini). Only used if --provider is openai."
+    )
+    translate_parser.add_argument(
+        "--openrouter-model",
+        help="OpenRouter model name (default: from OPENROUTER_MODEL env or openai/gpt-4o-mini). Only used if --provider is openrouter."
+    )
+    translate_parser.add_argument(
+        "--claude-model",
+        help="Claude model name (default: from ANTHROPIC_MODEL env or claude-3-5-sonnet-20241022). Only used if --provider is claude."
+    )
+    translate_parser.add_argument(
+        "--use-batch-api",
+        action="store_true",
+        help="Use asynchronous batch API for Claude (50% cost savings, up to 24h processing). Only used if --provider is claude."
+    )
+    translate_parser.add_argument(
+        "--batch-threshold",
+        type=int,
+        help="Auto-use batch API if items > threshold (default: 100). Only used if --provider is claude."
     )
     translate_parser.add_argument(
         "--batch-size",
@@ -152,8 +187,18 @@ def main() -> None:
     run_parser.add_argument(
         "--i18n-dir",
         type=Path,
-        default=Path("i18n"),
-        help="Directory containing i18n JSON files (default: i18n)"
+        default=None,
+        help="Directory containing i18n JSON files (folder mode). Mutually exclusive with --source-file/--target-file."
+    )
+    run_parser.add_argument(
+        "--source-file",
+        type=Path,
+        help="Source language JSON file (file mode). Mutually exclusive with --i18n-dir."
+    )
+    run_parser.add_argument(
+        "--target-file",
+        type=Path,
+        help="Target language JSON file (file mode, single file). Mutually exclusive with --i18n-dir."
     )
     run_parser.add_argument(
         "--memory-file",
@@ -169,11 +214,11 @@ def main() -> None:
     run_parser.add_argument(
         "--source-lang",
         default="sv",
-        help="Source language code (default: sv)"
+        help="Source language code (default: sv, or inferred from --source-file filename)"
     )
     run_parser.add_argument(
         "--provider",
-        choices=["ollama", "api", "openai"],
+        choices=["ollama", "openai", "openrouter", "claude"],
         default="ollama",
         help="Translation provider (default: ollama)"
     )
@@ -185,6 +230,24 @@ def main() -> None:
     run_parser.add_argument(
         "--openai-model",
         help="OpenAI model name (default: from OPENAI_MODEL env or gpt-4o-mini). Only used if --provider is openai."
+    )
+    run_parser.add_argument(
+        "--openrouter-model",
+        help="OpenRouter model name (default: from OPENROUTER_MODEL env or openai/gpt-4o-mini). Only used if --provider is openrouter."
+    )
+    run_parser.add_argument(
+        "--claude-model",
+        help="Claude model name (default: from ANTHROPIC_MODEL env or claude-3-5-sonnet-20241022). Only used if --provider is claude."
+    )
+    run_parser.add_argument(
+        "--use-batch-api",
+        action="store_true",
+        help="Use asynchronous batch API for Claude (50% cost savings, up to 24h processing). Only used if --provider is claude."
+    )
+    run_parser.add_argument(
+        "--batch-threshold",
+        type=int,
+        help="Auto-use batch API if items > threshold (default: 100). Only used if --provider is claude."
     )
     run_parser.add_argument(
         "--batch-size",
@@ -221,10 +284,45 @@ def main() -> None:
     
     if args.command == "build-memory":
         try:
+            # Validate mutually exclusive modes
+            has_folder_mode = args.i18n_dir is not None
+            has_file_mode = args.source_file is not None
+            
+            if not has_folder_mode and not has_file_mode:
+                # Default to folder mode if nothing specified
+                args.i18n_dir = Path("i18n")
+                has_folder_mode = True
+            
+            # Note: target_file is not used in build-memory, only source_file
+            
+            if has_folder_mode and has_file_mode:
+                print("✗ Error: Cannot specify both --i18n-dir and --source-file/--target-file", file=sys.stderr)
+                sys.exit(1)
+            
+            # Determine source language (infer from filename if not specified)
+            source_lang = args.source_lang
+            if has_file_mode and args.source_file:
+                # If source-lang not explicitly set and using file mode, try to infer
+                if source_lang == "sv":  # Only infer if using default
+                    source_lang = args.source_file.stem
+            
+            # Build i18n_files dict if in file mode
+            i18n_files = None
+            if has_file_mode:
+                i18n_files = {}
+                if args.source_file:
+                    i18n_files[source_lang] = args.source_file
+                if args.target_file:  # This is a list from action="append"
+                    for target_file in args.target_file:
+                        # Infer language code from filename
+                        target_lang = target_file.stem
+                        i18n_files[target_lang] = target_file
+            
             build_memory(
-                i18n_dir=args.i18n_dir,
                 output_file=args.output,
-                source_lang=args.source_lang
+                source_lang=source_lang,
+                i18n_dir=args.i18n_dir,
+                i18n_files=i18n_files
             )
             print(f"✓ Built memory artifact: {args.output}")
         except Exception as e:
@@ -251,13 +349,31 @@ def main() -> None:
     
     elif args.command == "write-back":
         try:
+            # Validate mutually exclusive modes
+            has_folder_mode = args.i18n_dir is not None
+            has_file_mode = args.output_file is not None
+            
+            if not has_folder_mode and not has_file_mode:
+                # Default to folder mode if nothing specified
+                args.i18n_dir = Path("i18n")
+                has_folder_mode = True
+            
+            if has_folder_mode and has_file_mode:
+                print("✗ Error: Cannot specify both --i18n-dir and --output-file", file=sys.stderr)
+                sys.exit(1)
+            
             stats = merge_translations(
                 memory_file=args.memory_file,
-                i18n_dir=args.i18n_dir,
                 target_lang=args.target_lang,
-                force=args.force
+                force=args.force,
+                i18n_dir=args.i18n_dir,
+                output_file=args.output_file
             )
-            print(f"✓ Merged translations into {args.i18n_dir}/{args.target_lang}.json")
+            
+            if args.output_file:
+                print(f"✓ Merged translations into {args.output_file}")
+            else:
+                print(f"✓ Merged translations into {args.i18n_dir}/{args.target_lang}.json")
             print(f"  Updated: {stats['updated']}")
             print(f"  Skipped: {stats['skipped']}")
             if stats['errors']:
@@ -281,11 +397,21 @@ def main() -> None:
             # Initialize provider
             if args.provider == "ollama":
                 provider = OllamaProvider(model=args.model)
-            elif args.provider == "api":
-                provider = APIProvider()
             elif args.provider == "openai":
                 model = args.openai_model  # None if not provided, will use env/default
                 provider = OpenAIProvider(model=model)
+            elif args.provider == "openrouter":
+                model = args.openrouter_model  # None if not provided, will use env/default
+                provider = OpenRouterProvider(model=model)
+            elif args.provider == "claude":
+                model = args.claude_model  # None if not provided, will use env/default
+                use_batch = getattr(args, 'use_batch_api', False)
+                batch_threshold = getattr(args, 'batch_threshold', None)
+                provider = ClaudeProvider(
+                    model=model,
+                    use_batch_api=use_batch,
+                    batch_threshold=batch_threshold if batch_threshold is not None else 100
+                )
             else:
                 raise ValueError(f"Unknown provider: {args.provider}")
             
@@ -331,12 +457,44 @@ def main() -> None:
     
     elif args.command == "run":
         try:
+            # Validate mutually exclusive modes
+            has_folder_mode = args.i18n_dir is not None
+            has_file_mode = args.source_file is not None or args.target_file is not None
+            
+            if not has_folder_mode and not has_file_mode:
+                # Default to folder mode if nothing specified
+                args.i18n_dir = Path("i18n")
+                has_folder_mode = True
+            
+            if has_folder_mode and has_file_mode:
+                print("✗ Error: Cannot specify both --i18n-dir and --source-file/--target-file", file=sys.stderr)
+                sys.exit(1)
+            
+            # Determine source language (infer from filename if not specified)
+            source_lang = args.source_lang
+            if has_file_mode and args.source_file:
+                # If source-lang not explicitly set and using file mode, try to infer
+                if source_lang == "sv":  # Only infer if using default
+                    source_lang = args.source_file.stem
+            
+            # Build i18n_files dict if in file mode
+            i18n_files = None
+            if has_file_mode:
+                i18n_files = {}
+                if args.source_file:
+                    i18n_files[source_lang] = args.source_file
+                if args.target_file:
+                    # Infer language code from filename
+                    target_lang_from_file = args.target_file.stem
+                    i18n_files[target_lang_from_file] = args.target_file
+            
             # Step 1: Build memory
             print("Step 1: Building memory artifact...")
             build_memory(
-                i18n_dir=args.i18n_dir,
                 output_file=args.memory_file,
-                source_lang=args.source_lang
+                source_lang=source_lang,
+                i18n_dir=args.i18n_dir,
+                i18n_files=i18n_files
             )
             print(f"✓ Built memory artifact: {args.memory_file}")
             
@@ -356,11 +514,21 @@ def main() -> None:
                 # Initialize provider
                 if args.provider == "ollama":
                     provider = OllamaProvider(model=args.model)
-                elif args.provider == "api":
-                    provider = APIProvider()
                 elif args.provider == "openai":
                     model = args.openai_model  # None if not provided, will use env/default
                     provider = OpenAIProvider(model=model)
+                elif args.provider == "openrouter":
+                    model = args.openrouter_model  # None if not provided, will use env/default
+                    provider = OpenRouterProvider(model=model)
+                elif args.provider == "claude":
+                    model = args.claude_model  # None if not provided, will use env/default
+                    use_batch = getattr(args, 'use_batch_api', False)
+                    batch_threshold = getattr(args, 'batch_threshold', None)
+                    provider = ClaudeProvider(
+                        model=model,
+                        use_batch_api=use_batch,
+                        batch_threshold=batch_threshold if batch_threshold is not None else 100
+                    )
                 else:
                     raise ValueError(f"Unknown provider: {args.provider}")
                 
@@ -401,12 +569,21 @@ def main() -> None:
                 stats = {"items_translated": 0, "validation_errors": 0}
             
             # Step 3: Write back
-            print(f"\nStep 3: Writing back translations to {args.i18n_dir}/{args.target_lang}.json...")
+            output_file = None
+            if has_file_mode and args.target_file:
+                output_file = args.target_file
+            
+            if output_file:
+                print(f"\nStep 3: Writing back translations to {output_file}...")
+            else:
+                print(f"\nStep 3: Writing back translations to {args.i18n_dir}/{args.target_lang}.json...")
+            
             merge_stats = merge_translations(
                 memory_file=args.memory_file,
-                i18n_dir=args.i18n_dir,
                 target_lang=args.target_lang,
-                force=args.force
+                force=args.force,
+                i18n_dir=args.i18n_dir if has_folder_mode else None,
+                output_file=output_file
             )
             print(f"✓ Merged translations")
             print(f"  Updated: {merge_stats['updated']}")

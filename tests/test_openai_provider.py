@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch, MagicMock
 from requests.exceptions import Timeout, RequestException
 
 from src.providers.openai import OpenAIProvider
+from src.providers.utils import extract_json_from_response, fix_json_escaping
 
 
 def test_openai_provider_init_from_env():
@@ -52,18 +53,16 @@ def test_openai_provider_init_missing_api_key():
 
 def test_openai_provider_extract_json():
     """Test JSON extraction from various response formats."""
-    provider = OpenAIProvider(api_key="test-key")
-    
     # Valid JSON as-is
-    assert provider._extract_json('{"key": "value"}') == '{"key": "value"}'
+    assert extract_json_from_response('{"key": "value"}') == '{"key": "value"}'
     
     # JSON in markdown code block
     response = '```json\n{"key": "value"}\n```'
-    assert provider._extract_json(response) == '{"key": "value"}'
+    assert extract_json_from_response(response) == '{"key": "value"}'
     
     # JSON with commentary
     response = 'Here is the JSON:\n{"key": "value"}\nThat was it.'
-    assert provider._extract_json(response) == '{"key": "value"}'
+    assert extract_json_from_response(response) == '{"key": "value"}'
 
 
 def test_openai_provider_fix_json_escaping():

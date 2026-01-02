@@ -1,11 +1,11 @@
 # Constitution: i18n LLM Translator (file-only)
 
 ## Purpose
-Translate missing i18n strings from Swedish (sv) into target languages via LLMs while preserving existing translations and placeholder integrity.
+Translate missing i18n strings from a source language (configurable, default: sv) into target languages via LLMs while preserving existing translations and placeholder integrity.
 
 ## Invariants
 - Never overwrite non-empty translations unless explicitly forced.
-- Swedish (sv) is authoritative.
+- The source language (configurable via --source-lang) is authoritative.
 - Placeholders must be preserved exactly.
 - LLM responses must be strict JSON matching the schema.
 - The pipeline must be resumable and idempotent using files only.

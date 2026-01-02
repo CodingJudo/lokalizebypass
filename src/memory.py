@@ -2,10 +2,10 @@
 
 import hashlib
 from pathlib import Path
-from typing import Dict, Any, List, Set
+from typing import Dict, Any, List, Set, Optional
 from collections import defaultdict
 
-from src.io_json import read_all_i18n_files
+from src.io_json import read_all_i18n_files, read_i18n_files_explicit
 from src.validate.placeholders import protected_signature
 
 
@@ -64,20 +64,43 @@ def compute_fingerprint(key: str, source: str, placeholder_signature: str, conte
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-def build_memory(i18n_dir: Path, output_file: Path, source_lang: str = "sv") -> None:
+def build_memory(
+    output_file: Path,
+    source_lang: str = "sv",
+    i18n_dir: Optional[Path] = None,
+    i18n_files: Optional[Dict[str, Path]] = None
+) -> None:
     """
     Build memory.jsonl from i18n JSON files.
     
-    Reads all JSON files from i18n_dir, identifies missing translations,
-    generates placeholder signatures, and writes memory.jsonl.
+    Reads i18n files either from a directory or from explicit file paths,
+    identifies missing translations, generates placeholder signatures, and writes memory.jsonl.
     
     Args:
-        i18n_dir: Directory containing i18n JSON files
         output_file: Path to output memory.jsonl file
         source_lang: Source language code (default: "sv")
+        i18n_dir: Directory containing i18n JSON files (folder mode)
+        i18n_files: Dictionary mapping language codes to file paths (file mode)
+                   Example: {"en": Path("en.json"), "fr": Path("fr.json")}
+    
+    Raises:
+        ValueError: If neither i18n_dir nor i18n_files is provided, or if both are provided
+        ValueError: If source language is not found in i18n files
     """
-    # Read all i18n files
-    i18n_data = read_all_i18n_files(i18n_dir)
+    # Validate that exactly one mode is specified
+    if i18n_dir is None and i18n_files is None:
+        raise ValueError("Either i18n_dir or i18n_files must be provided")
+    if i18n_dir is not None and i18n_files is not None:
+        raise ValueError("Cannot specify both i18n_dir and i18n_files")
+    
+    # Read i18n files based on mode
+    if i18n_dir is not None:
+        # Folder mode: read all JSON files from directory
+        i18n_data = read_all_i18n_files(i18n_dir)
+    else:
+        # File mode: read explicit files
+        file_paths = list(i18n_files.values())
+        i18n_data = read_i18n_files_explicit(file_paths, lang_map=i18n_files)
     
     if source_lang not in i18n_data:
         raise ValueError(f"Source language '{source_lang}' not found in i18n files")

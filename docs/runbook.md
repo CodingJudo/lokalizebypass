@@ -65,9 +65,13 @@ Options:
 - `--memory-file PATH`: Path to memory.jsonl (default: `work/memory.jsonl`)
 - `--target-lang CODE`: Target language code (required)
 - `--source-lang CODE`: Source language code (default: `sv`)
-- `--provider PROVIDER`: Translation provider: `ollama`, `api`, or `openai` (default: `ollama`)
-- `--model MODEL`: Ollama model name (default: `llama3.1:latest`). Ignored if `--provider` is `openai`.
+- `--provider PROVIDER`: Translation provider: `ollama`, `openai`, `openrouter`, or `claude` (default: `ollama`)
+- `--model MODEL`: Ollama model name (default: `llama3.1:latest`). Ignored if `--provider` is `openai` or `openrouter`.
 - `--openai-model MODEL`: OpenAI model name (default: from `OPENAI_MODEL` env or `gpt-4o-mini`). Only used if `--provider` is `openai`.
+- `--openrouter-model MODEL`: OpenRouter model name (default: from `OPENROUTER_MODEL` env or `openai/gpt-4o-mini`). Only used if `--provider` is `openrouter`.
+- `--claude-model MODEL`: Claude model name (default: from `ANTHROPIC_MODEL` env or `claude-3-5-sonnet-20241022`). Only used if `--provider` is `claude`.
+- `--use-batch-api`: Use asynchronous batch API for Claude (50% cost savings, up to 24h processing). Only used if `--provider` is `claude`.
+- `--batch-threshold N`: Auto-use batch API if items > threshold (default: 100). Only used if `--provider` is `claude`.
 - `--batch-size N`: Batch size for translations (default: `10`)
 - `--runs-dir PATH`: Directory for run logs (default: `work/runs`)
 - `--context TEXT`: Global context for translations
@@ -88,7 +92,7 @@ Options:
 - `--memory-file PATH`: Path to memory.jsonl (default: `work/memory.jsonl`)
 - `--target-lang CODE`: Target language code (required)
 - `--source-lang CODE`: Source language code (default: `sv`)
-- `--provider PROVIDER`: Translation provider: `ollama`, `api`, or `openai` (default: `ollama`)
+- `--provider PROVIDER`: Translation provider: `ollama`, `openai`, `openrouter`, or `claude` (default: `ollama`)
 - `--model MODEL`: Ollama model name (default: `llama3.1:latest`). Ignored if `--provider` is `openai`.
 - `--openai-model MODEL`: OpenAI model name (default: from `OPENAI_MODEL` env or `gpt-4o-mini`). Only used if `--provider` is `openai`.
 - `--batch-size N`: Batch size for translations (default: `10`)
@@ -267,13 +271,116 @@ python -m src.cli run --target-lang fr --provider openai --openai-model gpt-4o-m
 - **429 Rate Limit**: You've exceeded rate limits. The provider will retry automatically with exponential backoff
 - **500/502/503 Server Error**: OpenAI service issue. The provider will retry automatically
 
-### API Provider (Skeleton)
+### OpenRouter
 
-The `api` provider is a skeleton for custom API integrations. It requires:
-- `TRANSLATION_API_KEY` environment variable
-- `TRANSLATION_API_URL` environment variable
+**Pros:**
+- Access to multiple LLM models through one API (OpenAI, Anthropic, Google, etc.)
+- OpenAI-compatible API format
+- Flexible model selection
+- No local setup required
 
-This is intended for future custom integrations.
+**Cons:**
+- Requires API key and costs money
+- Data sent to external service
+- Requires internet connection
+- Pricing varies by model
+
+**Setup:**
+1. Get an API key from [OpenRouter](https://openrouter.ai/)
+2. Set environment variable: `export OPENROUTER_API_KEY=sk-or-...`
+3. (Optional) Set model: `export OPENROUTER_MODEL=openai/gpt-4o-mini`
+4. (Optional) Set custom base URL: `export OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`
+5. (Optional) Set HTTP-Referer: `export OPENROUTER_HTTP_REFERER=https://your-site.com`
+6. (Optional) Set site name: `export OPENROUTER_SITE_NAME=Your App Name`
+
+**Example:**
+```bash
+export OPENROUTER_API_KEY=sk-or-your-key-here
+python -m src.cli run --target-lang fr --provider openrouter --openrouter-model openai/gpt-4o-mini
+```
+
+**Available Models:**
+OpenRouter supports many models from different providers:
+- OpenAI: `openai/gpt-4o-mini`, `openai/gpt-4o`, `openai/gpt-4-turbo`
+- Anthropic: `anthropic/claude-3-5-sonnet`, `anthropic/claude-3-opus`
+- Google: `google/gemini-pro`, `google/gemini-flash`
+- And many more - see [OpenRouter Models](https://openrouter.ai/models)
+
+**Cost Considerations:**
+- Pricing varies by model (check [OpenRouter Pricing](https://openrouter.ai/docs/pricing))
+- Costs are per token (input + output)
+- Some models offer better cost/quality ratios
+- Monitor usage at [OpenRouter Dashboard](https://openrouter.ai/keys)
+
+**Troubleshooting:**
+- **401 Authentication Error**: Check your API key is correct
+- **403 Permission Error**: Verify your API key has access to the model
+- **429 Rate Limit**: You've exceeded rate limits. The provider will retry automatically with exponential backoff
+- **500/502/503 Server Error**: OpenRouter service issue. The provider will retry automatically
+
+### Claude (Anthropic)
+
+**Pros:**
+- High-quality translations
+- Access to Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku
+- Optional batch API for 50% cost savings on large volumes
+- No local setup required
+
+**Cons:**
+- Requires API key and costs money
+- Data sent to external service
+- Requires internet connection
+- Batch API takes up to 24 hours (but 50% cheaper)
+
+**Setup:**
+1. Get an API key from [Anthropic](https://console.anthropic.com/)
+2. Set environment variable: `export ANTHROPIC_API_KEY=sk-ant-...`
+3. (Optional) Set model: `export ANTHROPIC_MODEL=claude-3-5-sonnet-20241022`
+4. (Optional) Set custom base URL: `export ANTHROPIC_BASE_URL=https://api.anthropic.com/v1`
+
+**Example (Synchronous - Immediate Results):**
+```bash
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+python -m src.cli run --target-lang fr --provider claude --claude-model claude-3-5-sonnet-20241022
+```
+
+**Example (Batch API - 50% Cost Savings, Up to 24h):**
+```bash
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+python -m src.cli run --target-lang fr --provider claude --use-batch-api
+```
+
+**Example (Auto-detect Batch API for Large Volumes):**
+```bash
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+python -m src.cli run --target-lang fr --provider claude --batch-threshold 100
+```
+
+**Available Models:**
+- `claude-3-5-sonnet-20241022` (default, recommended)
+- `claude-3-opus-20240229`
+- `claude-3-haiku-20240307`
+
+**Cost Considerations:**
+- Standard API: Pay-per-token pricing
+- Batch API: 50% discount on input and output tokens
+- Batch API: Best for 100+ items, non-time-sensitive translations
+- Monitor usage at [Anthropic Console](https://console.anthropic.com/)
+
+**Batch API Details:**
+- **When to use**: Large volumes (100+ items), cost-sensitive, can wait up to 24 hours
+- **When NOT to use**: Small batches, need immediate results
+- **Processing time**: Up to 24 hours (often much faster)
+- **Cost savings**: 50% discount compared to standard API
+- **Auto-detection**: Automatically uses batch API if items > threshold (default: 100)
+
+**Troubleshooting:**
+- **401 Authentication Error**: Check your API key is correct
+- **403 Permission Error**: Verify your API key has access to the model
+- **429 Rate Limit**: You've exceeded rate limits. The provider will retry automatically with exponential backoff
+- **500/502/503 Server Error**: Anthropic service issue. The provider will retry automatically
+- **Batch Expired/Cancelled**: Batch failed to process. Check batch status for details
+
 
 ## Phase 5: Optional Hardening
 
