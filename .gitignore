@@ -54,3 +54,7 @@ Thumbs.db
 .env
 .env.local
 
+# Speckit/planning artifacts
+docs/feature-plan.md
+docs/phases_checklist.md
+docs/simplification-analysis.md
