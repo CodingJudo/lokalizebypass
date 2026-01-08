@@ -149,7 +149,7 @@ def main() -> None:
     translate_parser.add_argument(
         "--use-batch-api",
         action="store_true",
-        help="Use asynchronous batch API for Claude (50% cost savings, up to 24h processing). Only used if --provider is claude."
+        help="Use asynchronous batch API for Claude (50%% cost savings, up to 24h processing). Only used if --provider is claude."
     )
     translate_parser.add_argument(
         "--batch-threshold",
@@ -242,7 +242,7 @@ def main() -> None:
     run_parser.add_argument(
         "--use-batch-api",
         action="store_true",
-        help="Use asynchronous batch API for Claude (50% cost savings, up to 24h processing). Only used if --provider is claude."
+        help="Use asynchronous batch API for Claude (50%% cost savings, up to 24h processing). Only used if --provider is claude."
     )
     run_parser.add_argument(
         "--batch-threshold",
